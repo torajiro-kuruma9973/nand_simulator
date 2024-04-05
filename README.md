@@ -1,2 +1,2 @@
 # nand_simulator
-For simulating write amplication 
+This project is a simple controller simulator for simulating write amplication.
