@@ -7,6 +7,7 @@ classdef Controller < handle
     properties
         amount_op_blocks;            % total OP blocks.
         amount_user_blocks;          % total blocks users can use.
+        amount_user_pages;           % total pages users can use.
         current_avl_usr_blocks_num;  % current ready blocks
         open_block;                  % the block which is ready to be written
         virtual_blk;                 % matlab dosen't support null, so here I use a virtual blk whose idx is 0
@@ -27,8 +28,10 @@ classdef Controller < handle
             obj.nand = Nand();
             obj.amount_op_blocks = ceil(Nand.NAND_SIZE * (Controller.OP / 100));
             obj.amount_user_blocks = Nand.NAND_SIZE - obj.amount_op_blocks;
+            obj.amount_user_pages = obj.amount_user_blocks * Block.BLOCK_SIZE;
             obj.current_avl_usr_blocks_num = obj.amount_user_blocks;
             obj.available_blocks_link = Queue(Nand.NAND_SIZE); % at begining, all the blocks are available
+            obj.valid_pages_num_in_blk = 0;
             % init the link
             for i = 1 : Nand.NAND_SIZE
                 block = obj.nand.blocks_array(i);
@@ -38,7 +41,7 @@ classdef Controller < handle
             obj.closed_blocks_link = Queue(Nand.NAND_SIZE); % just leave it empty
             
             % init the l2p table
-            obj.l2p_tbl = zeros(obj.amount_user_blocks, 2);
+            obj.l2p_tbl = zeros(obj.amount_user_pages, 2);
             for n = 1 : obj.amount_user_blocks % (n, 1): block idx. (n, 2): page offset.
                 obj.l2p_tbl(n, 1) = 0;
                 obj.l2p_tbl(n, 2) = 0;
@@ -76,12 +79,14 @@ classdef Controller < handle
         % used for GC, copying valide pages in source block to open block
         function obj = block_copy(obj, src_blk)
             for i = 1 : Block.BLOCK_SIZE
-                if src_blk.pages_array(i) == Block.VALID_PAGE
+                if src_blk.pages_array(1, i) == Block.VALID_PAGE
                     usr_pg_idx = obj.p2l_tbl(src_blk.blk_idx, i);
-                    obj.write_page(obj, usr_pg_idx);
+                    obj.write_page(usr_pg_idx);
                     obj.valid_pages_num_in_blk = obj.valid_pages_num_in_blk + 1;
                 end
             end
+            disp("Amp:")
+            obj.valid_pages_num_in_blk
             obj.available_blocks_link.push(src_blk);
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -93,7 +98,7 @@ classdef Controller < handle
                 switch(stt)
                     %%%%%%%%%%%%%%%%%%%%%%
                     case State_machine.START
-                        disp(State_machine.START)
+                        %disp(State_machine.START)
                         open_block_idx = obj.open_block.blk_idx;
                         if (open_block_idx ~= 0) && (obj.nand.blocks_array(open_block_idx).block_is_full()) % open block is full
                             % close the block
@@ -124,7 +129,7 @@ classdef Controller < handle
                             gc_blk = obj.closed_blocks_link.pop(Queue.PQ);
                             disp("The GC block is:");
                             disp(gc_blk.blk_idx);
-                            obj.block_copy(gc_blk.blk_idx);
+                            obj.block_copy(gc_blk);
                         else
                             obj.stm.set_state(State_machine.WRITE_PAGE);
                         end

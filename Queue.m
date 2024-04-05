@@ -31,6 +31,7 @@ classdef Queue < handle
                 obj.head = 1;
                 obj.q(obj.head) = content;
                 obj.tail = 2;
+                obj.q_len = obj.q_len + 1;
             else
                 obj.q(obj.tail) = content;
    
@@ -44,12 +45,14 @@ classdef Queue < handle
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        
         function content = pop(obj, mode)
             assert(obj.q_len ~= 0, "queue is empty!!")
             if(mode == "PQ")
                 %[~, idx_v] = sort(obj.q, 2, 'descend'); % priority Q, always pops max value
                 %obj.q = obj.q(:, idx_v(1, :));
-                obj.q = sort(obj.q.first, 'descend');
+                [~, vec] = sort([obj.q.num_of_inv_pages], 'descend');
+                obj.q = obj.q(vec);
             end
             content = obj.q(obj.head);
           

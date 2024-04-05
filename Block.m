@@ -7,8 +7,9 @@ classdef Block < handle
     end
     properties
         blk_idx;
-        current_pg_idx;  % the available page offset in this block
-        pages_array;     
+        current_pg_idx;    % the available page offset in this block
+        pages_array;    
+        num_of_inv_pages;  % how many invalid pages in this block
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -16,6 +17,7 @@ classdef Block < handle
         function obj = Block()
             obj.current_pg_idx = 1;
             obj.pages_array = zeros(1, Block.BLOCK_SIZE); % at begining, all the pages are empty
+            obj.num_of_inv_pages = 0;
         end
         
         function obj = set_block_idx(obj, n)
@@ -49,6 +51,7 @@ classdef Block < handle
         
         function obj = set_page_dirty(obj, page_offset)
             obj.pages_array(page_offset) = Block.INVALID_PAGE;
+            obj.num_of_inv_pages = obj.num_of_inv_pages + 1;
         end
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
