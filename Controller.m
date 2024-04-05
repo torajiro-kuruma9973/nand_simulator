@@ -9,13 +9,14 @@ classdef Controller < handle
         amount_user_blocks;          % total blocks users can use.
         current_avl_usr_blocks_num;  % current ready blocks
         open_block_idx;              % the block id where is ready to be written
-        %open_page_idx;               % the first available page id in the open block
+%         open_page_idx;               % the first available page id in the open block
         open_page_in_block_idx;      % the page id in the open block
         available_blocks_link;       % the queue of empty blocks
         closed_blocks_link;          % the queue of full blocks
+        valid_pages_num_in_blk;      % how many valide pages in a block to be cycled
         l2p_tbl(1, :) = Tuple(0, 0); % logical addr to physic addr. Idx is the logic addr. (page offset, block_idx)
         p2l_tbl;                     % physic addr to logical addr. Idx is the physic addr.
-        %valid_page_tbl;              % record the number of valid pages in a block
+%         valid_page_tbl;              % record the number of valid pages in a block
         nand;                        % a handler of a Nand object
         stm;                         % state machine handler
     end
@@ -28,7 +29,7 @@ classdef Controller < handle
             obj.available_blocks_link = Queue(Nand.NAND_SIZE); % at begining, all the blocks are available
             % init the link
             for i = 1 : Nand.NAND_SIZE
-                obj.available_blocks_link.push(Tuple(0, i)); % (invalid_page_num, block_idx)
+                obj.available_blocks_link.push(Tuple(0, i)); % (invalid_page_num, block_idx), but invalid_page is unused in this q.
             end
             
             obj.closed_blocks_link = Queue(Nand.NAND_SIZE); % just leave it empty
@@ -64,13 +65,16 @@ classdef Controller < handle
             open_blk.update_page_point();
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        % used for GC, copying valide pages in source block to dest block
-        function obj = block_copy(obj, src_idx, dest_idx)
+        % used for GC, copying valide pages in source block to open block
+        function obj = block_copy(obj, src_blk_idx)
             for i = 1 : Block.BLOCK_SIZE
-                if obj.nand.blocks_array(src_idx).pages_array(i) == Block.INVALID_PAGE;
-                    
+                if obj.nand.blocks_array(src_blk_idx).pages_array(i) == Block.VALID_PAGE;
+                    usr_pg_idx = obj.p2l_tbl(src_blk_idx, i);
+                    obj.write_page(obj, usr_pg_idx);
+                    obj.valid_pages_num_in_blk = obj.valid_pages_num_in_blk + 1;
                 end
             end
+            obj.available_blocks_link.push(Tuple(0, src_blk_idx));
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function obj = user_write_page(obj, user_pg_idx) 
@@ -115,7 +119,7 @@ classdef Controller < handle
                             gc_blk = obj.closed_blocks_link.pop(Queue.PQ);
                             disp("The GC block is:");
                             disp(gc_blk.blk_idx);
-                            
+                            obj.block_copy(gc_blk.blk_idx);
                         else
                             obj.stm.set_state(State_machine.WRITE_PAGE);
                         end
