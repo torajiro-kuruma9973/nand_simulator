@@ -1,0 +1,67 @@
+classdef Queue < handle
+    properties (Constant)
+        IDX_END = -1;
+        CQ      = "CQ";                          % common q
+        PQ      = "PQ";                          % priority q
+    end
+    properties
+        head;
+        tail;
+        q(1, :) = Tuple(0, 0);
+        max_len; % q len
+        num_of_nodes; % how many elements now
+    end
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    methods
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function obj = Queue(q_len)
+            obj.head = 0;
+            obj.tail = 0;
+            for n = 1 : q_len
+                obj.q(n) = Tuple(0, 0);
+            end
+            
+            obj.max_len = q_len;
+            obj.num_of_nodes = 0;
+        end
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function obj = push(obj, content)
+            assert(obj.num_of_nodes ~= obj.len, "queue is full already!!");
+            if obj.head == 0 % empty queue
+                obj.head = 1;
+                obj.q(obj.head) = content;
+                obj.tail = 2;
+            else
+                obj.q(obj.tail) = content;
+   
+                if(obj.tail + 1 > obj.len)
+                    obj.tail = 1;
+                else
+                    obj.tail = obj.tail + 1;
+                end
+                obj.num_of_nodes = obj.num_of_nodes + 1;
+            end
+        end
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function content = pop(obj, mode)
+            assert(obj.num_of_nodes ~= 0, "queue is empty!!")
+            if(mode == "PQ")
+                %[~, idx_v] = sort(obj.q, 2, 'descend'); % priority Q, always pops max value
+                %obj.q = obj.q(:, idx_v(1, :));
+                obj.q = sort(obj.q.first, 'descend');
+            end
+            content = obj.q(obj.head);
+          
+            if(obj.head + 1 > obj.len)
+                obj.head = 1;
+            else
+                obj.head = obj.head + 1;
+            end
+            obj.num_of_nodes = obj.num_of_nodes - 1;
+        end
+        
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        function get_nodes_u = pop(obj, mode)
+    end
+end
