@@ -7,7 +7,7 @@ classdef Queue < handle
     properties
         head;
         tail;
-        q(1, :) = Tuple(0, 0);
+        q(1, :) = Block;
         max_len; % max buffer length
         q_len; % how many elements now
     end
@@ -18,7 +18,7 @@ classdef Queue < handle
             obj.head = 0;
             obj.tail = 0;
             for n = 1 : q_max_len
-                obj.q(n) = Tuple(0, 0);
+                obj.q(n) = Block();
             end
             
             obj.max_len = q_max_len;

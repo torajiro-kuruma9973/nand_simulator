@@ -29,15 +29,17 @@ classdef Block < handle
         function obj = write_page(obj)
             assert(obj.current_pg_idx <= Block.BLOCK_SIZE)
             obj.pages_array(obj.current_pg_idx) = Block.VALID_PAGE;
+            obj.current_pg_idx = obj.current_pg_idx + 1;
         end
         
         function rst = block_is_full(obj)
             rst = obj.current_pg_idx > Block.BLOCK_SIZE;
         end
         
-        function obj = update_page_point(obj)
-            obj.current_pg_idx = obj.current_pg_idx + 1;
-        end
+%         function obj = update_page_point(obj)
+%             obj.current_pg_idx = obj.current_pg_idx + 1;
+%         end
+
         function obj = erase(obj)
             obj.current_pg_idx = 1;
             for n = 1 : Block.BLOCK_SIZE
