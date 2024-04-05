@@ -44,6 +44,35 @@ classdef Controller < handle
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % used for modifying a user's page
+        function obj = write_page(obj, usr_pg_idx)
+            addr_tuple = obj.l2p_tbl(usr_pg_idx);
+            if ~(addr_tuple.is_empty) % modify page
+                % set the page as dirty page
+                [pg_offset, blk_idx] = addr_tuple.get_tuple();
+                obj.nand.blocks_array(1, blk_idx).set_page_dirty(pg_offset);
+            end
+            open_blk = obj.nand.blocks_array(obj.open_block_idx);
+            % write the current available page
+            open_blk.write_page();
+            % update l2p table 
+            current_avl_pg = open_blk.current_pg_idx;
+            addr_tuple.set_tuple(current_avl_pg, obj.open_block_idx);
+            % update p2l table
+            obj.p2l_tbl(current_avl_pg, obj.open_block_idx) = usr_pg_idx;
+            % update the page pointer
+            open_blk.update_page_point();
+        end
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        % used for GC, copying valide pages in source block to dest block
+        function obj = block_copy(obj, src_idx, dest_idx)
+            for i = 1 : Block.BLOCK_SIZE
+                if obj.nand.blocks_array(src_idx).pages_array(i) == Block.INVALID_PAGE;
+                    
+                end
+            end
+        end
+        %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function obj = user_write_page(obj, user_pg_idx) 
             assert(obj.stm.get_state() == State_machine.END, "The state machine is not clean!!");
             obj.stm.set_state(State_machine.START);
@@ -54,14 +83,13 @@ classdef Controller < handle
                     case State_machine.START
                         disp(State_machine.START)
                         
-                        if (obj.open_block_idx ~= 0) && (obj.nand.nand_space_array(obj.open_block_idx).block_is_full()) % open block is full
+                        if (obj.open_block_idx ~= 0) && (obj.nand.blocks_array(obj.open_block_idx).block_is_full()) % open block is full
                             % close the block
-                            inv_page_num = obj.nand.nand_space_array(obj.open_block_idx).get_num_of_invalide_pages();
+                            inv_page_num = obj.nand.blocks_array(obj.open_block_idx).get_num_of_invalide_pages();
                             
                             obj.closed_blocks_link.push(Tuple(inv_page_num, obj.open_block_idx));
                             obj.open_block_idx = 0;
                         end
-                        
                         if obj.open_block_idx == 0 % no open block yet
                             % here I don't implement the exception handler for no-space
                             % case.
@@ -70,38 +98,26 @@ classdef Controller < handle
                             [~, obj.open_block_idx] = tuple.get_tuple();
                             %obj.open_page_idx = 1; % Matlab array starts with 1
                         end
-                        obj.stm.set_state(State_machine.WRITE_PAGE);
-
+                        % to check if garbage collection is needed
+                        obj.stm.set_state(State_machine.GARBAGE_COLLECTION);
+                   
                     %%%%%%%%%%%%%%%%%%%%%%
                     case State_machine.WRITE_PAGE
                         disp(State_machine.WRITE_PAGE)
-%                         blk_idx = ceil(user_pg_idx / Block.BLOCK_SIZE);
-%                         pg_offset = user_pg_idx - blk_idx * Block.BLOCK_SIZE;
-                        addr_tuple = obj.l2p_tbl(user_pg_idx);
-                        
-                        if ~(addr_tuple.is_empty) % modify page
-                            % set the page as dirty page
-                            [pg_offset, blk_idx] = addr_tuple.get_tuple();
-                            obj.nand.nand_space_array(1, blk_idx).set_page_dirty(pg_offset);
-                        end
-                        % write the current available page
-                        obj.nand.nand_space_array(obj.open_block_idx).write_page();
-                        % update l2p table 
-                        current_avl_pg = obj.nand.nand_space_array(obj.open_block_idx).current_pg_idx;
-                        addr_tuple.set_tuple(current_avl_pg, obj.open_block_idx);
-                        % update p2l table
-                        obj.p2l_tbl(current_avl_pg, obj.open_block_idx) = user_pg_idx;
-                        % update the page pointer
-                        obj.nand.nand_space_array(obj.open_block_idx).update_page_point();
-                        
-                        obj.stm.set_state(State_machine.GARBAGE_COLLECTION);
+                        obj.write_page(user_pg_idx);
+                        obj.stm.set_state(State_machine.END);
                     %%%%%%%%%%%%%%%%%%%%%%
                     case State_machine.GARBAGE_COLLECTION
                         current_val_blks = obj.available_blocks_link.get_current_q_len();
                         
-                        if current_val_blks < Controller.GC_THRESHOLD
+                        if current_val_blks == Controller.GC_THRESHOLD
+                            disp(State_machine.GARBAGE_COLLECTION)
+                            gc_blk = obj.closed_blocks_link.pop(Queue.PQ);
+                            disp("The GC block is:");
+                            disp(gc_blk.blk_idx);
+                            
                         else
-                            obj.stm.set_state(State_machine.END);
+                            obj.stm.set_state(State_machine.WRITE_PAGE);
                         end
                         
                     %%%%%%%%%%%%%%%%%%%%%%

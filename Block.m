@@ -6,6 +6,7 @@ classdef Block < handle
         EMPTY_PAGE = 0;
     end
     properties
+        blk_idx;
         current_pg_idx;  % the available page offset in this block
         pages_array;     
     end
@@ -15,6 +16,10 @@ classdef Block < handle
         function obj = Block()
             obj.current_pg_idx = 1;
             obj.pages_array = zeros(1, Block.BLOCK_SIZE); % at begining, all the pages are empty
+        end
+        
+        function obj = set_block_idx(obj, n)
+            obj.blk_idx = n;
         end
         
         function inv_num = get_num_of_invalide_pages(obj)

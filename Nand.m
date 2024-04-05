@@ -4,18 +4,19 @@ classdef Nand < handle
     end
     
     properties
-        nand_space_array(1, :) = Block();       % hard code here due to the matlab        
+        blocks_array(1, :) = Block();       % hard code here due to the matlab        
     end
     
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     methods
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
        function obj = Nand()
            for n = 1 : Nand.NAND_SIZE
-               obj.nand_space_array(1, n) = Block();
+               obj.blocks_array(1, n) = Block();
+               obj.blocks_array(1, n).set_block_idx(n);
            end
        end
        
     end
-    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 end
