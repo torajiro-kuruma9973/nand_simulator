@@ -1,7 +1,6 @@
 classdef Block < handle
     properties(Constant)
         BLOCK_SIZE = 4;   % 64 pages per block
-        VALID_PAGE = 1;
         INVALID_PAGE = -1;
         EMPTY_PAGE = 0;
     end
@@ -10,6 +9,10 @@ classdef Block < handle
         current_pg_idx;    % the available page offset in this block
         pages_array;    
         num_of_inv_pages;  % how many invalid pages in this block
+        % used in Q, the previous entry
+        prev;
+        % used in Q, the next entry
+        next;
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -28,9 +31,10 @@ classdef Block < handle
             inv_num = sum(obj.pages_array(1, :) == Block.INVALID_PAGE);
         end
         
-        function obj = write_page(obj)
+        function obj = write_page(obj, data)
             assert(obj.current_pg_idx <= Block.BLOCK_SIZE)
-            obj.pages_array(obj.current_pg_idx) = Block.VALID_PAGE;
+            assert(data > 0)
+            obj.pages_array(obj.current_pg_idx) = data;
             obj.current_pg_idx = obj.current_pg_idx + 1;
         end
         
@@ -44,6 +48,7 @@ classdef Block < handle
 
         function obj = erase(obj)
             obj.current_pg_idx = 1;
+            obj.num_of_inv_pages = 0;
             for n = 1 : Block.BLOCK_SIZE
                 obj.pages_array(1, n) = Block.EMPTY_PAGE;
             end

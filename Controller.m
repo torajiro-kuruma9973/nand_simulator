@@ -8,7 +8,7 @@ classdef Controller < handle
         amount_op_blocks;            % total OP blocks.
         amount_user_blocks;          % total blocks users can use.
         amount_user_pages;           % total pages users can use.
-        current_avl_usr_blocks_num;  % current ready blocks
+%         current_avl_usr_blocks_num;  % current ready blocks
         open_block;                  % the block which is ready to be written
         virtual_blk;                 % matlab dosen't support null, so here I use a virtual blk whose idx is 0
 %         open_page_idx;               % the first available page id in the open block
@@ -29,7 +29,7 @@ classdef Controller < handle
             obj.amount_op_blocks = ceil(Nand.NAND_SIZE * (Controller.OP / 100));
             obj.amount_user_blocks = Nand.NAND_SIZE - obj.amount_op_blocks;
             obj.amount_user_pages = obj.amount_user_blocks * Block.BLOCK_SIZE;
-            obj.current_avl_usr_blocks_num = obj.amount_user_blocks;
+%             obj.current_avl_usr_blocks_num = obj.amount_user_blocks;
             obj.available_blocks_link = Queue(Nand.NAND_SIZE); % at begining, all the blocks are available
             obj.valid_pages_num_in_blk = 0;
             % init the link
@@ -63,7 +63,7 @@ classdef Controller < handle
             pg_offset = obj.l2p_tbl(usr_pg_idx, 2);
             if ~(pg_offset == 0 && blk_idx == 0) % modify page
                 % set the page as dirty page
-                obj.nand.blocks_array(1, blk_idx).set_page_dirty(pg_offset);
+                obj.nand.blocks_array(blk_idx, 1).set_page_dirty(pg_offset);
             end
             open_blk = obj.nand.blocks_array(obj.open_block.blk_idx);
             % update l2p table
@@ -72,21 +72,22 @@ classdef Controller < handle
             % update p2l table
             obj.p2l_tbl(open_blk.blk_idx, open_blk.current_pg_idx) = usr_pg_idx;
             % write the current available page
-            open_blk.write_page();
+            open_blk.write_page(usr_pg_idx);
    
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % used for GC, copying valide pages in source block to open block
         function obj = block_copy(obj, src_blk)
             for i = 1 : Block.BLOCK_SIZE
-                if src_blk.pages_array(1, i) == Block.VALID_PAGE
+                if src_blk.pages_array(1, i) > 0 % valid page
                     usr_pg_idx = obj.p2l_tbl(src_blk.blk_idx, i);
                     obj.write_page(usr_pg_idx);
                     obj.valid_pages_num_in_blk = obj.valid_pages_num_in_blk + 1;
                 end
             end
-            disp("Amp:")
-            obj.valid_pages_num_in_blk
+            disp("Amp: " + obj.valid_pages_num_in_blk);
+            obj.valid_pages_num_in_blk = 0; % clear for next session
+            src_blk.erase();
             obj.available_blocks_link.push(src_blk);
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

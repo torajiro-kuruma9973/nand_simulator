@@ -1,8 +1,9 @@
 classdef Queue < handle
     properties (Constant)
-        IDX_END = -1;
-        CQ      = "CQ";                          % common q
-        PQ      = "PQ";                          % priority q
+        IDX_HEAD  = 0
+        IDX_END   = -1;
+        CQ        = "CQ";                          % common q
+        PQ        = "PQ";                          % priority q
     end
     properties
         head;
