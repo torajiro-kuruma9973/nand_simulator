@@ -1,6 +1,6 @@
 classdef Nand < handle
     properties(Constant)
-        NAND_SIZE = 32;                          % 1024 blocks per NAND
+        NAND_SIZE = 128;                          % 1024 blocks per NAND
     end
     
     properties

@@ -1,6 +1,6 @@
 classdef Block < handle
     properties(Constant)
-        BLOCK_SIZE = 4;   % 64 pages per block
+        BLOCK_SIZE = 16;   % 64 pages per block
         INVALID_PAGE = -1;
         EMPTY_PAGE = 0;
     end
@@ -9,10 +9,7 @@ classdef Block < handle
         current_pg_idx;    % the available page offset in this block
         pages_array;    
         num_of_inv_pages;  % how many invalid pages in this block
-        % used in Q, the previous entry
-        prev;
-        % used in Q, the next entry
-        next;
+        q;                 % node information
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -21,6 +18,7 @@ classdef Block < handle
             obj.current_pg_idx = 1;
             obj.pages_array = zeros(1, Block.BLOCK_SIZE); % at begining, all the pages are empty
             obj.num_of_inv_pages = 0;
+            obj.q = Queue();
         end
         
         function obj = set_block_idx(obj, n)

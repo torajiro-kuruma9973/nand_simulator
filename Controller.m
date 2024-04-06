@@ -13,14 +13,14 @@ classdef Controller < handle
         virtual_blk;                 % matlab dosen't support null, so here I use a virtual blk whose idx is 0
 %         open_page_idx;               % the first available page id in the open block
         open_page_in_block_idx;      % the page id in the open block
-        available_blocks_link;       % the queue of empty blocks
-        closed_blocks_link;          % the queue of full blocks
         valid_pages_num_in_blk;      % how many valide pages in a block to be cycled
         l2p_tbl;                     % logical addr to physic addr. row idx is the logic addr. col is (block_idx, page offset)
         p2l_tbl;                     % physic addr to logical addr. Idx is the physic addr.
 %         valid_page_tbl;              % record the number of valid pages in a block
         nand;                        % a handler of a Nand object
         stm;                         % state machine handler
+        avl_q_header;                % management of Q of available blocks
+        closed_q_header;             % management of Q of closed blocks
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     methods
@@ -30,16 +30,7 @@ classdef Controller < handle
             obj.amount_user_blocks = Nand.NAND_SIZE - obj.amount_op_blocks;
             obj.amount_user_pages = obj.amount_user_blocks * Block.BLOCK_SIZE;
 %             obj.current_avl_usr_blocks_num = obj.amount_user_blocks;
-            obj.available_blocks_link = Queue(Nand.NAND_SIZE); % at begining, all the blocks are available
-            obj.valid_pages_num_in_blk = 0;
-            % init the link
-            for i = 1 : Nand.NAND_SIZE
-                block = obj.nand.blocks_array(i);
-                obj.available_blocks_link.push(block); 
-            end
-            
-            obj.closed_blocks_link = Queue(Nand.NAND_SIZE); % just leave it empty
-            
+        
             % init the l2p table
             obj.l2p_tbl = zeros(obj.amount_user_pages, 2);
             for n = 1 : obj.amount_user_blocks % (n, 1): block idx. (n, 2): page offset.
@@ -54,6 +45,12 @@ classdef Controller < handle
             obj.open_block = obj.virtual_blk;
 
             obj.stm = State_machine();
+            obj.avl_q_header = Q_header();
+            for i = 1 : Nand.NAND_SIZE
+                blk = obj.nand.blocks_array(i);
+                obj.avl_q_header.push(blk, obj.nand.blocks_array);
+            end
+            obj.closed_q_header = Q_header();
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -77,7 +74,7 @@ classdef Controller < handle
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         % used for GC, copying valide pages in source block to open block
-        function obj = block_copy(obj, src_blk)
+        function obj = block_copy(obj, src_blk, array)
             for i = 1 : Block.BLOCK_SIZE
                 if src_blk.pages_array(1, i) > 0 % valid page
                     usr_pg_idx = obj.p2l_tbl(src_blk.blk_idx, i);
@@ -88,7 +85,7 @@ classdef Controller < handle
             disp("Amp: " + obj.valid_pages_num_in_blk);
             obj.valid_pages_num_in_blk = 0; % clear for next session
             src_blk.erase();
-            obj.available_blocks_link.push(src_blk);
+            obj.avl_q_header.push(src_blk, array);
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         function obj = user_write_page(obj, user_pg_idx) 
@@ -104,14 +101,14 @@ classdef Controller < handle
                         if (open_block_idx ~= 0) && (obj.nand.blocks_array(open_block_idx).block_is_full()) % open block is full
                             % close the block
                             %inv_page_num = obj.nand.blocks_array(open_block_idx).get_num_of_invalide_pages();
-                            obj.closed_blocks_link.push(obj.open_block);
+                            obj.closed_q_header.push(obj.open_block, obj.nand.blocks_array);
                             obj.open_block = obj.virtual_blk;
                         end
                         if obj.open_block == obj.virtual_blk % no open block yet
                             % here I don't implement the exception handler for no-space
                             % case.
                             % open a new block
-                            obj.open_block = obj.available_blocks_link.pop(Queue.CQ);
+                            obj.open_block = obj.avl_q_header.pop(obj.nand.blocks_array, Q_header.CQ);
                         end
                         % to check if garbage collection is needed
                         obj.stm.set_state(State_machine.GARBAGE_COLLECTION);
@@ -123,14 +120,14 @@ classdef Controller < handle
                         obj.stm.set_state(State_machine.END);
                     %%%%%%%%%%%%%%%%%%%%%%
                     case State_machine.GARBAGE_COLLECTION
-                        current_val_blks = obj.available_blocks_link.get_current_q_len();
+                        current_val_blks = obj.avl_q_header.get_current_q_len();
                         
                         if current_val_blks == Controller.GC_THRESHOLD
                             disp(State_machine.GARBAGE_COLLECTION)
-                            gc_blk = obj.closed_blocks_link.pop(Queue.PQ);
+                            gc_blk = obj.closed_q_header.pop(obj.nand.blocks_array, Q_header.PQ);
                             disp("The GC block is:");
                             disp(gc_blk.blk_idx);
-                            obj.block_copy(gc_blk);
+                            obj.block_copy(gc_blk, obj.nand.blocks_array);
                         else
                             obj.stm.set_state(State_machine.WRITE_PAGE);
                         end
