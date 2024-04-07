@@ -1,6 +1,6 @@
 classdef Block < handle
     properties(Constant)
-        BLOCK_SIZE = 16;   % 64 pages per block
+        BLOCK_SIZE = 64;   % 64 pages per block
         INVALID_PAGE = -1;
         EMPTY_PAGE = 0;
     end

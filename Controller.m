@@ -1,6 +1,6 @@
 classdef Controller < handle
     properties(Constant)
-        OP               = 10;                            % percent
+        OP               = 20;                            % percent
         GC_THRESHOLD     = 2;                             % 2 blocks
     end
     
@@ -21,6 +21,7 @@ classdef Controller < handle
         stm;                         % state machine handler
         avl_q_header;                % management of Q of available blocks
         closed_q_header;             % management of Q of closed blocks
+        amp_record;
     end
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     methods
@@ -51,6 +52,9 @@ classdef Controller < handle
                 obj.avl_q_header.push(blk, obj.nand.blocks_array);
             end
             obj.closed_q_header = Q_header();
+            
+            obj.valid_pages_num_in_blk = 0;
+            obj.amp_record = 0;
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -82,7 +86,9 @@ classdef Controller < handle
                     obj.valid_pages_num_in_blk = obj.valid_pages_num_in_blk + 1;
                 end
             end
-            disp("Amp: " + obj.valid_pages_num_in_blk);
+            %disp("Amp: " + obj.valid_pages_num_in_blk);
+            obj.amp_record = obj.valid_pages_num_in_blk;
+            
             obj.valid_pages_num_in_blk = 0; % clear for next session
             src_blk.erase();
             obj.avl_q_header.push(src_blk, array);
@@ -115,18 +121,18 @@ classdef Controller < handle
                    
                     %%%%%%%%%%%%%%%%%%%%%%
                     case State_machine.WRITE_PAGE
-                        disp(State_machine.WRITE_PAGE)
+                        %disp(State_machine.WRITE_PAGE)
                         obj.write_page(user_pg_idx);
                         obj.stm.set_state(State_machine.END);
                     %%%%%%%%%%%%%%%%%%%%%%
                     case State_machine.GARBAGE_COLLECTION
                         current_val_blks = obj.avl_q_header.get_current_q_len();
                         
-                        if current_val_blks == Controller.GC_THRESHOLD
-                            disp(State_machine.GARBAGE_COLLECTION)
+                        if current_val_blks < Controller.GC_THRESHOLD
+                            %disp(State_machine.GARBAGE_COLLECTION)
                             gc_blk = obj.closed_q_header.pop(obj.nand.blocks_array, Q_header.PQ);
-                            disp("The GC block is:");
-                            disp(gc_blk.blk_idx);
+                            %disp("The GC block is:");
+                            %disp(gc_blk.blk_idx);
                             obj.block_copy(gc_blk, obj.nand.blocks_array);
                         else
                             obj.stm.set_state(State_machine.WRITE_PAGE);
